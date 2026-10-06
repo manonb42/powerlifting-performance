@@ -12,7 +12,7 @@ def duplicate_groups(train: pd.DataFrame) -> pd.Series:
     so they must stay in the same fold.
     """
     features = [c for c in train.columns if c not in [ID, TARGET]]
-    return train.groupby(features).ngroup()
+    return train.groupby(features, dropna=False).ngroup()
 
 
 def cross_validate(model, X: pd.DataFrame, y: pd.Series, groups: pd.Series,
