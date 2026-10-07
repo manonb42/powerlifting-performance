@@ -8,3 +8,9 @@ ID = "id"
 TARGET = "TotalKg"
 
 CAT_COLS = ["Sex", "Equipment", "Tested", "Federation", "Country"]
+
+NUM_COLS = ["Age", "BodyweightKg", "MeetYear"]
+ALL_CAT_COLS = [
+    "Sex", "Equipment", "AgeClass", "BirthYearClass", "WeightClassKg", "Tested", "Country", "State",
+    "Federation", "ParentFederation", "MeetCountry", "MeetState", "Sanctioned",
+]
