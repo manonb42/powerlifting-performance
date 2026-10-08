@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.compose import make_column_transformer
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, SplineTransformer
@@ -56,3 +57,21 @@ class TotalKgRegressor(RegressorMixin, BaseEstimator):
             if rows.any():
                 log_pred[rows] = self.models_[name].predict(X[rows]) + self.log_shifts_[name]
         return np.exp(log_pred.to_numpy())
+
+
+def make_gradient_boosting(random_state: int = 0) -> HistGradientBoostingRegressor:
+    """Gradient boosting on TotalKg in kg, with the pandas categorical columns handled natively.
+
+    Early stopping on 10 % of the training rows picks the number of trees.
+    """
+    return HistGradientBoostingRegressor(
+        categorical_features="from_dtype",
+        learning_rate=0.05,
+        max_iter=2000,
+        max_leaf_nodes=63,
+        min_samples_leaf=40,
+        early_stopping=True,
+        validation_fraction=0.1,
+        n_iter_no_change=50,
+        random_state=random_state,
+    )
