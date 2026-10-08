@@ -32,4 +32,5 @@ Train the model, print the cross-validation scores and write a submission to `su
 
 ```bash
 uv run python -m powerlifting_performance.train
+uv run python -m powerlifting_performance.train --model linear
 ```
