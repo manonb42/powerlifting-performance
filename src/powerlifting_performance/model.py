@@ -1,13 +1,16 @@
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.compose import make_column_transformer
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GroupShuffleSplit
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, SplineTransformer
 
 from powerlifting_performance.config import CAT_COLS
+from powerlifting_performance.validation import duplicate_groups
 
 
 def make_linear_pipeline(bodyweight_spline: bool = True) -> Pipeline:
@@ -75,3 +78,23 @@ def make_gradient_boosting(random_state: int = 0) -> HistGradientBoostingRegress
         n_iter_no_change=50,
         random_state=random_state,
     )
+
+
+class EarlyStoppingLightGBM(RegressorMixin, BaseEstimator):
+    """LightGBM on the tree features, the number of trees picked by early stopping on 10 % of the rows.
+
+    Exact duplicates are kept together in the early stopping split, so that it is not scored on rows it has seen.
+    """
+
+    def fit(self, X: pd.DataFrame, y: pd.Series):
+        tr, es = next(GroupShuffleSplit(1, test_size=0.1, random_state=0).split(X, y, duplicate_groups(X)))
+        self.model_ = lgb.LGBMRegressor(
+            n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,
+            subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=0,
+        )
+        self.model_.fit(X.iloc[tr], y.iloc[tr], eval_set=[(X.iloc[es], y.iloc[es])],
+                        callbacks=[lgb.early_stopping(200, verbose=False)])
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        return self.model_.predict(X)
