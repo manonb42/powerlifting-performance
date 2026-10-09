@@ -86,3 +86,10 @@ def prepare_tree(train: pd.DataFrame, test: pd.DataFrame,
     dtypes = category_dtypes(train)
     return (build_tree_features(train, dtypes, derived), train[TARGET],
             build_tree_features(test, dtypes, derived))
+
+
+def prepare_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+    """Return X_train, y_train (in kg) and X_test for LightGBM: the tree features with every category kept
+    (LightGBM has no limit on their number)."""
+    dtypes = category_dtypes(train, min_count=1, max_categories=None)
+    return build_tree_features(train, dtypes), train[TARGET], build_tree_features(test, dtypes)
