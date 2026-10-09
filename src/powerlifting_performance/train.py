@@ -1,17 +1,18 @@
 """Cross-validate a model, then fit it on the whole train set and write a submission.
 
-Usage: uv run python -m powerlifting_performance.train [--model {gradient_boosting,linear}]
+Usage: uv run python -m powerlifting_performance.train [--model {lightgbm,gradient_boosting,linear}]
 """
 
 import argparse
 
 from powerlifting_performance.config import ID
 from powerlifting_performance.data import load_data, save_submission
-from powerlifting_performance.features import prepare, prepare_tree
-from powerlifting_performance.model import TotalKgRegressor, make_gradient_boosting
+from powerlifting_performance.features import prepare, prepare_lightgbm, prepare_tree
+from powerlifting_performance.model import EarlyStoppingLightGBM, TotalKgRegressor, make_gradient_boosting
 from powerlifting_performance.validation import cross_validate, duplicate_groups
 
 MODELS = {
+    "lightgbm": (prepare_lightgbm, EarlyStoppingLightGBM, "lightgbm"),
     "gradient_boosting": (prepare_tree, make_gradient_boosting, "gradient_boosting"),
     "linear": (prepare, TotalKgRegressor, "regression_lineaire"),
 }
@@ -19,7 +20,7 @@ MODELS = {
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", choices=MODELS, default="gradient_boosting")
+    parser.add_argument("--model", choices=MODELS, default="lightgbm")
     args = parser.parse_args()
     prepare_fn, make_model, submission_name = MODELS[args.model]
 
