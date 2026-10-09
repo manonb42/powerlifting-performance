@@ -54,14 +54,35 @@ def category_dtypes(train: pd.DataFrame, min_count: int = 20,
     return dtypes
 
 
-def build_tree_features(df: pd.DataFrame, dtypes: dict[str, pd.CategoricalDtype]) -> pd.DataFrame:
-    X = df[NUM_COLS].copy()
-    for col, dtype in dtypes.items():
-        X[col] = df[col].where(df[col].isin(dtype.categories), RARE).astype(dtype)
+def add_derived_features(X: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
+    """Hints of the athlete's level that the raw columns only hold implicitly.
+
+    - age_half: age ending in .5, i.e. approximated from a birth year.
+    - class_limit, is_plus_class: the weight class as numbers ("93+" -> 93 and 1). They replace the
+      WeightClassKg category, which only adds noise once they are there (78.28 vs 78.40 RMSE).
+    - bw_ratio: bodyweight / class limit; close to 1 means the athlete made weight on purpose.
+
+    is_international (Country != MeetCountry) was tried and dropped: no gain, the model already has both columns.
+    """
+    X = X.drop(columns="WeightClassKg")
+    X["age_half"] = (df.Age % 1 == 0.5).astype(int)
+    X["class_limit"] = pd.to_numeric(df.WeightClassKg.str.rstrip("+"), errors="coerce")
+    X["is_plus_class"] = df.WeightClassKg.str.endswith("+").astype(int)
+    X["bw_ratio"] = df.BodyweightKg / X.class_limit
     return X
 
 
-def prepare_tree(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
-    """Return X_train, y_train (in kg) and X_test for the gradient boosting: every raw column, categories as-is."""
+def build_tree_features(df: pd.DataFrame, dtypes: dict[str, pd.CategoricalDtype], derived: bool = True) -> pd.DataFrame:
+    X = df[NUM_COLS].copy()
+    for col, dtype in dtypes.items():
+        X[col] = df[col].where(df[col].isin(dtype.categories), RARE).astype(dtype)
+    return add_derived_features(X, df) if derived else X
+
+
+def prepare_tree(train: pd.DataFrame, test: pd.DataFrame,
+                 derived: bool = True) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+    """Return X_train, y_train (in kg) and X_test for the gradient boosting: every raw column, categories as-is,
+    plus (optionally) the derived features."""
     dtypes = category_dtypes(train)
-    return build_tree_features(train, dtypes), train[TARGET], build_tree_features(test, dtypes)
+    return (build_tree_features(train, dtypes, derived), train[TARGET],
+            build_tree_features(test, dtypes, derived))
