@@ -8,11 +8,11 @@ import argparse
 from powerlifting_performance.config import ID
 from powerlifting_performance.data import load_data, save_submission
 from powerlifting_performance.features import prepare, prepare_lightgbm, prepare_tree
-from powerlifting_performance.model import EarlyStoppingLightGBM, TotalKgRegressor, make_gradient_boosting
+from powerlifting_performance.model import LevelLightGBM, TotalKgRegressor, make_gradient_boosting
 from powerlifting_performance.validation import cross_validate, duplicate_groups
 
 MODELS = {
-    "lightgbm": (prepare_lightgbm, EarlyStoppingLightGBM, "lightgbm"),
+    "lightgbm": (prepare_lightgbm, LevelLightGBM, "lightgbm"),
     "gradient_boosting": (prepare_tree, make_gradient_boosting, "gradient_boosting"),
     "linear": (prepare, TotalKgRegressor, "regression_lineaire"),
 }

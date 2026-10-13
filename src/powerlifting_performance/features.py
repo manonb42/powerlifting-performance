@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from powerlifting_performance.config import ALL_CAT_COLS, CAT_COLS, NUM_COLS, TARGET
+from powerlifting_performance.config import (ALL_CAT_COLS, CAT_COLS, CONTEXT_KEY, MEET_KEY, NUM_COLS, PROFILE_KEY,
+                                             TARGET)
 
 
 def is_wrong_age(df: pd.DataFrame) -> pd.Series:
@@ -88,8 +89,17 @@ def prepare_tree(train: pd.DataFrame, test: pd.DataFrame,
             build_tree_features(test, dtypes, derived))
 
 
+def level_keys(df: pd.DataFrame) -> pd.DataFrame:
+    """String keys grouping the rows for the level features: meet_key, profile_key and context_key."""
+    df = df.assign(birth_year=(df.MeetYear - df.Age).round().astype(int), bodyweight_bin=df.BodyweightKg // 10)
+    join = lambda cols: df[cols].astype(str).agg("|".join, axis=1)
+    return pd.DataFrame({"meet_key": join(MEET_KEY), "profile_key": join(PROFILE_KEY),
+                         "context_key": join(CONTEXT_KEY)})
+
+
 def prepare_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     """Return X_train, y_train (in kg) and X_test for LightGBM: the tree features with every category kept
-    (LightGBM has no limit on their number)."""
+    (LightGBM has no limit on their number), plus the level keys."""
     dtypes = category_dtypes(train, min_count=1, max_categories=None)
-    return build_tree_features(train, dtypes), train[TARGET], build_tree_features(test, dtypes)
+    build = lambda df: build_tree_features(df, dtypes).join(level_keys(df))
+    return build(train), train[TARGET], build(test)
