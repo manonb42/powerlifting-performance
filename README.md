@@ -25,3 +25,11 @@ uv sync
 ```
 
 `uv sync` creates a `.venv` virtual environment and installs the exact dependency versions listed in `uv.lock`.
+
+## Usage
+
+Train the model, print the cross-validation scores and write a submission to `submissions/`:
+
+```bash
+uv run python -m powerlifting_performance.train
+```
