@@ -100,7 +100,12 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     equipment and 10 kg bodyweight bin). For a row and a key, `<key>_level` is the mean relative level of the
     train rows sharing its key, and `<key>_count` their number. On the training rows they are computed
     out-of-fold, exact duplicates kept together, so that no row sees its own total.
+
+    n_seeds: one LightGBM per seed, predictions averaged.
     """
+
+    def __init__(self, n_seeds: int = 1):
+        self.n_seeds = n_seeds
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
         F = X.drop(columns=KEY_COLS)
@@ -114,17 +119,20 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
             F[f"{key}_level"], F[f"{key}_count"] = mean, count
         self.stats_ = {key: key_stats(X[key], level) for key in LEVEL_KEYS}
 
-        tr, es = next(GroupShuffleSplit(1, test_size=0.1, random_state=0).split(F, y, groups))
-        self.model_ = lgb.LGBMRegressor(
-            n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,
-            subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=0,
-        )
-        self.model_.fit(F.iloc[tr], y.iloc[tr], eval_set=[(F.iloc[es], y.iloc[es])],
-                        callbacks=[lgb.early_stopping(200, verbose=False)])
+        self.models_ = []
+        for seed in range(self.n_seeds):
+            tr, es = next(GroupShuffleSplit(1, test_size=0.1, random_state=seed).split(F, y, groups))
+            model = lgb.LGBMRegressor(
+                n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,
+                subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=seed,
+            )
+            model.fit(F.iloc[tr], y.iloc[tr], eval_set=[(F.iloc[es], y.iloc[es])],
+                      callbacks=[lgb.early_stopping(200, verbose=False)])
+            self.models_.append(model)
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         F = X.drop(columns=KEY_COLS)
         for key, stats in self.stats_.items():
             F[f"{key}_level"], F[f"{key}_count"] = map_key_stats(X[key], stats)
-        return self.model_.predict(F)
+        return np.mean([model.predict(F) for model in self.models_], axis=0)

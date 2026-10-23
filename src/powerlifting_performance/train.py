@@ -1,7 +1,7 @@
 """Cross-validate a model, then fit it on the whole train set and write a submission.
 
 Usage: uv run python -m powerlifting_performance.train [--model {lightgbm,gradient_boosting,linear}]
-                                                       [--skip-cv]
+                                                       [--seeds N] [--skip-cv]
 """
 
 import argparse
@@ -22,6 +22,7 @@ MODELS = {
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", choices=MODELS, default="lightgbm")
+    parser.add_argument("--seeds", type=int, default=1, help="lightgbm only: number of models averaged")
     parser.add_argument("--skip-cv", action="store_true", help="only fit and write the submission")
     args = parser.parse_args()
     prepare_fn, make_model, submission_name = MODELS[args.model]
@@ -29,6 +30,9 @@ def main():
     train, test = load_data()
     X, y, X_test = prepare_fn(train, test)
     model = make_model()
+    if args.model == "lightgbm":
+        model.set_params(n_seeds=args.seeds)
+        submission_name += f"_{args.seeds}graines"
 
     if not args.skip_cv:
         scores = cross_validate(model, X, y, duplicate_groups(train))
