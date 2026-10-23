@@ -9,7 +9,7 @@ from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, SplineTransformer
 
-from powerlifting_performance.config import CAT_COLS
+from powerlifting_performance.config import CAT_COLS, ID, TARGET
 from powerlifting_performance.validation import duplicate_groups
 
 
@@ -136,3 +136,16 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         for key, stats in self.stats_.items():
             F[f"{key}_level"], F[f"{key}_count"] = map_key_stats(X[key], stats)
         return np.mean([model.predict(F) for model in self.models_], axis=0)
+
+
+def blend_with_twins(train: pd.DataFrame, test: pd.DataFrame, predictions: np.ndarray,
+                     weight: float = 0.8) -> np.ndarray:
+    """For the test rows identical to train rows on every feature (often the same performance entered in several
+    divisions), predict weight * mean total of these train rows + (1 - weight) * the model's prediction.
+
+    weight = 0.8 was the best on train rows with a twin (RMSE 37 kg, against 66 kg for the model alone).
+    """
+    features = [c for c in train.columns if c not in [ID, TARGET]]
+    twin_total = test[features].merge(train.groupby(features, as_index=False)[TARGET].mean(),
+                                      on=features, how="left")[TARGET].to_numpy()
+    return np.where(np.isnan(twin_total), predictions, weight * twin_total + (1 - weight) * predictions)
