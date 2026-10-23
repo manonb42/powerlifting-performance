@@ -1,6 +1,7 @@
 """Cross-validate a model, then fit it on the whole train set and write a submission.
 
 Usage: uv run python -m powerlifting_performance.train [--model {lightgbm,gradient_boosting,linear}]
+                                                       [--skip-cv]
 """
 
 import argparse
@@ -21,6 +22,7 @@ MODELS = {
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", choices=MODELS, default="lightgbm")
+    parser.add_argument("--skip-cv", action="store_true", help="only fit and write the submission")
     args = parser.parse_args()
     prepare_fn, make_model, submission_name = MODELS[args.model]
 
@@ -28,10 +30,11 @@ def main():
     X, y, X_test = prepare_fn(train, test)
     model = make_model()
 
-    scores = cross_validate(model, X, y, duplicate_groups(train))
-    print(scores.round(2))
-    print(f"RMSE : {scores.RMSE.mean():.2f} ± {scores.RMSE.std():.2f}")
-    print(f"MAE  : {scores.MAE.mean():.2f}")
+    if not args.skip_cv:
+        scores = cross_validate(model, X, y, duplicate_groups(train))
+        print(scores.round(2))
+        print(f"RMSE : {scores.RMSE.mean():.2f} ± {scores.RMSE.std():.2f}")
+        print(f"MAE  : {scores.MAE.mean():.2f}")
 
     predictions = model.fit(X, y).predict(X_test)
     path = save_submission(test[ID], predictions, submission_name)
