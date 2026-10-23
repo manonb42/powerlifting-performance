@@ -35,3 +35,10 @@ uv run python -m powerlifting_performance.train
 uv run python -m powerlifting_performance.train --model gradient_boosting
 uv run python -m powerlifting_performance.train --model linear
 ```
+
+LightGBM options: `--seeds N` averages N models (default 1), `--twins` blends the submission with the totals of
+exact duplicates in train, `--skip-cv` only fits and writes the submission. The best submission so far:
+
+```bash
+uv run python -m powerlifting_performance.train --seeds 5 --twins --skip-cv
+```
