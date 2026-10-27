@@ -2,83 +2,10 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
-from sklearn.compose import make_column_transformer
-from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit
-from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.preprocessing import OneHotEncoder, SplineTransformer
 
-from powerlifting_performance.config import CAT_COLS, ID, TARGET
+from powerlifting_performance.config import ID, TARGET
 from powerlifting_performance.validation import duplicate_groups
-
-
-def make_linear_pipeline(bodyweight_spline: bool = True) -> Pipeline:
-    """Linear regression on one-hot categories, a spline on age and (optionally) on log bodyweight."""
-    return make_pipeline(
-        make_column_transformer(
-            (OneHotEncoder(min_frequency=20, handle_unknown="infrequent_if_exist"), CAT_COLS),
-            (SplineTransformer(n_knots=10), ["Age"]),
-            (SplineTransformer(n_knots=10) if bodyweight_spline else "passthrough", ["log_bodyweight"]),
-            remainder="passthrough",
-        ),
-        LinearRegression(),
-    )
-
-
-class TotalKgRegressor(RegressorMixin, BaseEstimator):
-    """Predicts TotalKg from a linear model fitted on log(TotalKg).
-
-    by_sex: fit one model for men and one for everyone else (women and Mx).
-    correct_bias: exp(log prediction) estimates the median; multiply by exp(residual variance / 2)
-    to estimate the mean instead.
-    """
-
-    def __init__(self, bodyweight_spline: bool = True, by_sex: bool = True, correct_bias: bool = True):
-        self.bodyweight_spline = bodyweight_spline
-        self.by_sex = by_sex
-        self.correct_bias = correct_bias
-
-    def _split(self, X: pd.DataFrame) -> dict[str, pd.Series]:
-        if self.by_sex:
-            return {"men": X.Sex == "M", "others": X.Sex != "M"}
-        return {"all": pd.Series(True, index=X.index)}
-
-    def fit(self, X: pd.DataFrame, y: pd.Series):
-        log_y = np.log(y)
-        self.models_, self.log_shifts_ = {}, {}
-        for name, rows in self._split(X).items():
-            model = make_linear_pipeline(self.bodyweight_spline).fit(X[rows], log_y[rows])
-            residuals = log_y[rows] - model.predict(X[rows])
-            self.models_[name] = model
-            self.log_shifts_[name] = residuals.var() / 2 if self.correct_bias else 0.0
-        return self
-
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
-        log_pred = pd.Series(np.nan, index=X.index)
-        for name, rows in self._split(X).items():
-            if rows.any():
-                log_pred[rows] = self.models_[name].predict(X[rows]) + self.log_shifts_[name]
-        return np.exp(log_pred.to_numpy())
-
-
-def make_gradient_boosting(random_state: int = 0) -> HistGradientBoostingRegressor:
-    """Gradient boosting on TotalKg in kg, with the pandas categorical columns handled natively.
-
-    Early stopping on 10 % of the training rows picks the number of trees.
-    """
-    return HistGradientBoostingRegressor(
-        categorical_features="from_dtype",
-        learning_rate=0.05,
-        max_iter=2000,
-        max_leaf_nodes=63,
-        min_samples_leaf=40,
-        early_stopping=True,
-        validation_fraction=0.1,
-        n_iter_no_change=50,
-        random_state=random_state,
-    )
-
 
 LEVEL_KEYS = ["meet_key", "profile_key"]
 KEY_COLS = LEVEL_KEYS + ["context_key"]

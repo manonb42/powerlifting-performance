@@ -1,40 +1,6 @@
-import numpy as np
 import pandas as pd
 
-from powerlifting_performance.config import (ALL_CAT_COLS, CAT_COLS, CONTEXT_KEY, MEET_KEY, NUM_COLS, PROFILE_KEY,
-                                             TARGET)
-
-
-def is_wrong_age(df: pd.DataFrame) -> pd.Series:
-    """Ages that cannot be right: under 5, or under 8 with an adult bodyweight."""
-    return (df.Age < 5) | ((df.Age < 8) & (df.BodyweightKg > 50))
-
-
-def fix_wrong_ages(df: pd.DataFrame, fill_age: float) -> pd.DataFrame:
-    """Flag wrong ages in `age_unknown` and replace them with `fill_age`.
-
-    The fill value does not matter for a linear model: every flagged row gets the same age,
-    and the `age_unknown` coefficient absorbs its effect.
-    """
-    df = df.copy()
-    wrong = is_wrong_age(df)
-    df["age_unknown"] = wrong.astype(int)
-    df.loc[wrong, "Age"] = fill_age
-    return df
-
-
-def build_features(df: pd.DataFrame) -> pd.DataFrame:
-    X = df[CAT_COLS + ["Age", "MeetYear", "age_unknown"]].copy()
-    X["log_bodyweight"] = np.log(df.BodyweightKg)
-    return X
-
-
-def prepare(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
-    """Return X_train, y_train (in kg) and X_test."""
-    fill_age = train.Age[~is_wrong_age(train)].median()
-    train = fix_wrong_ages(train, fill_age)
-    test = fix_wrong_ages(test, fill_age)
-    return build_features(train), train[TARGET], build_features(test)
+from powerlifting_performance.config import CAT_COLS, CONTEXT_KEY, MEET_KEY, NUM_COLS, PROFILE_KEY, TARGET
 
 
 RARE = "Rare"
@@ -48,7 +14,7 @@ def category_dtypes(train: pd.DataFrame, min_count: int = 20,
     and rare categories are noise anyway: they all go to `RARE`.
     """
     dtypes = {}
-    for col in ALL_CAT_COLS:
+    for col in CAT_COLS:
         counts = train[col].value_counts()
         kept = counts[counts >= min_count].index[:max_categories]
         dtypes[col] = pd.CategoricalDtype([*kept, RARE])
@@ -73,20 +39,11 @@ def add_derived_features(X: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
     return X
 
 
-def build_tree_features(df: pd.DataFrame, dtypes: dict[str, pd.CategoricalDtype], derived: bool = True) -> pd.DataFrame:
+def build_tree_features(df: pd.DataFrame, dtypes: dict[str, pd.CategoricalDtype]) -> pd.DataFrame:
     X = df[NUM_COLS].copy()
     for col, dtype in dtypes.items():
         X[col] = df[col].where(df[col].isin(dtype.categories), RARE).astype(dtype)
-    return add_derived_features(X, df) if derived else X
-
-
-def prepare_tree(train: pd.DataFrame, test: pd.DataFrame,
-                 derived: bool = True) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
-    """Return X_train, y_train (in kg) and X_test for the gradient boosting: every raw column, categories as-is,
-    plus (optionally) the derived features."""
-    dtypes = category_dtypes(train)
-    return (build_tree_features(train, dtypes, derived), train[TARGET],
-            build_tree_features(test, dtypes, derived))
+    return add_derived_features(X, df)
 
 
 def level_keys(df: pd.DataFrame) -> pd.DataFrame:
