@@ -11,18 +11,16 @@ def main():
     parser = argparse.ArgumentParser(description="Cross-validate the model, fit it on train and write a submission.")
     parser.add_argument("--twins", action="store_true",
                         help="blend the submission with the totals of exact duplicates in train")
-    parser.add_argument("--skip-cv", action="store_true", help="only fit and write the submission")
     args = parser.parse_args()
 
     train, test = load_data()
     X, y, X_test = prepare_lightgbm(train, test)
     model = LevelLightGBM()
 
-    if not args.skip_cv:
-        scores = cross_validate(model, X, y, duplicate_groups(train))
-        print(scores.round(2))
-        print(f"RMSE : {scores.RMSE.mean():.2f} ± {scores.RMSE.std():.2f}")
-        print(f"MAE  : {scores.MAE.mean():.2f}")
+    scores = cross_validate(model, X, y, duplicate_groups(train))
+    print(scores.round(2))
+    print(f"RMSE : {scores.RMSE.mean():.2f} ± {scores.RMSE.std():.2f}")
+    print(f"MAE  : {scores.MAE.mean():.2f}")
 
     predictions = model.fit(X, y).predict(X_test)
     name = "lightgbm"
