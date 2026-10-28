@@ -28,11 +28,11 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     train rows sharing its key, and `<key>_count` their number. On the training rows they are computed
     out-of-fold, exact duplicates kept together, so that no row sees its own total.
 
-    n_seeds: one LightGBM per seed, predictions averaged.
+    seeds: one LightGBM per seed, predictions averaged.
     """
 
-    def __init__(self, n_seeds: int = 1):
-        self.n_seeds = n_seeds
+    def __init__(self, seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
+        self.seeds = seeds
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
         F = X.drop(columns=KEY_COLS)
@@ -47,7 +47,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         self.stats_ = {key: key_stats(X[key], level) for key in LEVEL_KEYS}
 
         self.models_ = []
-        for seed in range(self.n_seeds):
+        for seed in self.seeds:
             tr, es = next(GroupShuffleSplit(1, test_size=0.1, random_state=seed).split(F, y, groups))
             model = lgb.LGBMRegressor(
                 n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,

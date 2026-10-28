@@ -9,7 +9,6 @@ from powerlifting_performance.validation import cross_validate, duplicate_groups
 
 def main():
     parser = argparse.ArgumentParser(description="Cross-validate the model, fit it on train and write a submission.")
-    parser.add_argument("--seeds", type=int, default=1, help="number of models averaged")
     parser.add_argument("--twins", action="store_true",
                         help="blend the submission with the totals of exact duplicates in train")
     parser.add_argument("--skip-cv", action="store_true", help="only fit and write the submission")
@@ -17,7 +16,7 @@ def main():
 
     train, test = load_data()
     X, y, X_test = prepare_lightgbm(train, test)
-    model = LevelLightGBM(n_seeds=args.seeds)
+    model = LevelLightGBM()
 
     if not args.skip_cv:
         scores = cross_validate(model, X, y, duplicate_groups(train))
@@ -26,7 +25,7 @@ def main():
         print(f"MAE  : {scores.MAE.mean():.2f}")
 
     predictions = model.fit(X, y).predict(X_test)
-    name = f"lightgbm_{args.seeds}graines"
+    name = "lightgbm"
     if args.twins:
         predictions = blend_with_twins(train, test, predictions)
         name += "_doublons"
