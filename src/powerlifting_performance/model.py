@@ -2,7 +2,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import GroupKFold, train_test_split
 
 from powerlifting_performance.config import CAT_COLS, ID, TARGET
 
@@ -28,8 +28,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     train rows sharing its key, and `<key>_count` their number. On the training rows they are computed
     out-of-fold, exact duplicates kept together, so that no row sees its own total.
 
-    The categories are those of the training rows. Each model stops early on 10 % of the training rows, exact
-    duplicates kept together.
+    The categories are those of the training rows. Each model stops early on a random 10 % of the training rows.
     """
 
     def __init__(self, seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
@@ -49,8 +48,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
 
         self.models_ = []
         for seed in self.seeds:
-            tr, es = next(GroupShuffleSplit(1, test_size=0.1, random_state=seed).split(F, y, X.duplicate_group))
-            F_tr, F_es, y_tr, y_es = F.iloc[tr], F.iloc[es], y.iloc[tr], y.iloc[es]
+            F_tr, F_es, y_tr, y_es = train_test_split(F, y, test_size=0.1, random_state=seed)
             model = lgb.LGBMRegressor(
                 n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,
                 subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=seed,
