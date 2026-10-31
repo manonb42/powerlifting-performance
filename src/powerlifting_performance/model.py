@@ -53,7 +53,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
                 n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,
                 subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=seed,
             )
-            model.fit(F_tr, y_tr, eval_set=[(F_es, y_es)], callbacks=[lgb.early_stopping(200, verbose=False)])
+            model.fit(F_tr, y_tr, eval_X=F_es, eval_y=y_es, callbacks=[lgb.early_stopping(200, verbose=False)])
             self.models_.append(model)
         return self
 
