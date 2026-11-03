@@ -1,5 +1,7 @@
 # Powerlifting Performance
 
+Predict the total (`TotalKg`) lifted by a powerlifter at a meet, from the OpenPowerlifting-derived data in `data/`.
+The metric is RMSE.
 
 ## Requirements
 
@@ -28,17 +30,23 @@ uv sync
 
 ## Usage
 
-Train the model, print the cross-validation scores and write a submission to `submissions/`:
+Cross-validate the model (LightGBM with level features), fit it on the whole train set and write a submission to
+`submissions/`:
 
 ```bash
 uv run python -m powerlifting_performance.train
-uv run python -m powerlifting_performance.train --model gradient_boosting
-uv run python -m powerlifting_performance.train --model linear
 ```
 
-LightGBM options: `--seeds N` averages N models (default 1), `--twins` blends the submission with the totals of
-exact duplicates in train, `--skip-cv` only fits and writes the submission. The best submission so far:
+`--twins` blends the submission with the totals of exact duplicates found in train.
 
-```bash
-uv run python -m powerlifting_performance.train --seeds 5 --twins --skip-cv
-```
+## Code
+
+All the code is in `src/powerlifting_performance/`.
+
+| File | Role |
+|---|---|
+| `features.py` | Features: raw columns, derived features, meet statistics, level keys |
+| `model.py` | The model, `LevelLightGBM`, and `blend_with_twins` |
+| `train.py` | Command line: cross-validation, fit, submission |
+| `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
+| `config.py`, `data.py` | Paths, column names, reading the data and writing a submission |
