@@ -31,13 +31,14 @@ uv sync
 ## Usage
 
 Cross-validate the model (LightGBM with level features), fit it on the whole train set and write a submission to
-`submissions/`:
+`submissions/submission_lightgbm.csv`:
 
 ```bash
 uv run python -m powerlifting_performance.train
 ```
 
-`--twins` blends the submission with the totals of exact duplicates found in train.
+For the test rows identical to train rows on every column, the submission blends the prediction with the totals of
+these train rows. The cross-validation score does not include this blend.
 
 ## Code
 
