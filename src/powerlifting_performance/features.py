@@ -30,32 +30,8 @@ def level_keys(df: pd.DataFrame) -> pd.DataFrame:
                          "context_key": join(CONTEXT_KEY)})
 
 
-def meet_stats(df: pd.DataFrame) -> pd.DataFrame:
-    """For each row, statistics of its meet (rows sharing its meet_key) and the size of its profile.
-
-    They describe the level of a meet without its totals: a big international meet full of equipped adult lifters
-    is not a small local meet for teenagers. Computed on train + test together: they use no target.
-    """
-    keys = level_keys(df)
-    meet_mean = lambda values: values.groupby(keys.meet_key).transform("mean")
-    return pd.DataFrame({
-        "meet_n": keys.groupby("meet_key").meet_key.transform("size"),
-        "meet_share_raw": meet_mean(df.Equipment == "Raw"),
-        "meet_share_multi": meet_mean(df.Equipment == "Multi-ply"),
-        "meet_share_men": meet_mean(df.Sex == "M"),
-        "meet_mean_age": meet_mean(df.Age),
-        "meet_share_youth": meet_mean(df.Age < 18),
-        "meet_mean_bw": meet_mean(df.BodyweightKg),
-        "meet_share_foreign": meet_mean(df.Country != df.MeetCountry),
-        "profile_n": keys.groupby("profile_key").profile_key.transform("size"),
-    })
-
-
 def prepare_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
-    """Return X_train, y_train (in kg) and X_test for LightGBM: raw columns, derived features, meet statistics,
-    then the keys."""
-    both = pd.concat([train.drop(columns=TARGET), test], ignore_index=True)
-    X = add_derived_features(both[NUM_COLS + CAT_COLS], both).join(meet_stats(both)).join(level_keys(both))
-    X_train = X.iloc[:len(train)].assign(duplicate_group=duplicate_groups(train))
-    X_test = X.iloc[len(train):].reset_index(drop=True).assign(duplicate_group=duplicate_groups(test))
-    return X_train, train[TARGET], X_test
+    """Return X_train, y_train (in kg) and X_test for LightGBM: raw columns, derived features, then the keys."""
+    build = lambda df: (add_derived_features(df[NUM_COLS + CAT_COLS], df).join(level_keys(df))
+                        .assign(duplicate_group=duplicate_groups(df)))
+    return build(train), train[TARGET], build(test)

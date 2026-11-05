@@ -46,7 +46,7 @@ All the code is in `src/powerlifting_performance/`.
 
 | File | Role |
 |---|---|
-| `features.py` | Features: raw columns, derived features, meet statistics, level keys |
+| `features.py` | Features: raw columns, derived features, level keys |
 | `model.py` | The model, `LevelLightGBM`, and `blend_with_twins` |
 | `train.py` | Command line: cross-validation, fit, submission |
 | `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
