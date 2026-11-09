@@ -19,5 +19,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "catboost>=1.2.10",
     "jupyter>=1.1.1",
+    "optuna>=5.0.0",
 ]
