@@ -8,6 +8,8 @@ from powerlifting_performance.config import CAT_COLS, ID, TARGET
 
 LEVEL_KEYS = ["meet_key", "profile_key"]
 KEY_COLS = LEVEL_KEYS + ["context_key", "duplicate_group"]
+PARAMS = dict(learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0, subsample=0.8, subsample_freq=1,
+              colsample_bytree=0.7)
 
 
 def key_stats(keys: pd.Series, level: pd.Series) -> pd.DataFrame:
@@ -29,10 +31,12 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     out-of-fold, exact duplicates kept together, so that no row sees its own total.
 
     The categories are those of the training rows. Each model stops early on a random 10 % of the training rows.
+    `params` overrides LightGBM parameters of PARAMS.
     """
 
-    def __init__(self, seeds: tuple[int, ...] = (0, 1, 2, 3, 4)):
+    def __init__(self, seeds: tuple[int, ...] = (0, 1, 2, 3, 4), params: dict | None = None):
         self.seeds = seeds
+        self.params = params
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
         F = X.drop(columns=KEY_COLS).astype({c: "category" for c in CAT_COLS if c != "WeightClassKg"})
@@ -49,10 +53,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         self.models_ = []
         for seed in self.seeds:
             F_tr, F_es, y_tr, y_es = train_test_split(F, y, test_size=0.1, random_state=seed)
-            model = lgb.LGBMRegressor(
-                n_estimators=10000, learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0,
-                subsample=0.8, subsample_freq=1, colsample_bytree=0.7, verbose=-1, random_state=seed,
-            )
+            model = lgb.LGBMRegressor(n_estimators=10000, verbose=-1, random_state=seed, **{**PARAMS, **(self.params or {})})
             model.fit(F_tr, y_tr, eval_X=F_es, eval_y=y_es, callbacks=[lgb.early_stopping(200, verbose=False)])
             self.models_.append(model)
         return self
