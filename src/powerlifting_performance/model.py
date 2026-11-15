@@ -13,23 +13,19 @@ PARAMS = dict(learning_rate=0.03368215881790901, num_leaves=53, min_child_sample
               reg_lambda=0.029083257971357097, cat_smooth=24.981310172342987)
 
 
-def key_stats(keys: pd.Series, level: pd.Series) -> pd.DataFrame:
-    """Mean relative level and number of rows for each key value."""
-    return level.groupby(keys).agg(["mean", "size"])
-
-
-def map_key_stats(keys: pd.Series, stats: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    return keys.map(stats["mean"]).to_numpy(), keys.map(stats["size"]).fillna(0).to_numpy()
+def key_stats(keys: pd.Series, level: pd.Series) -> pd.Series:
+    """Mean relative level for each key value."""
+    return level.groupby(keys).mean()
 
 
 class LevelLightGBM(RegressorMixin, BaseEstimator):
-    """LightGBM on the features of `features.prepare_lightgbm` plus two level features for each key of LEVEL_KEYS,
+    """LightGBM on the features of `features.prepare_lightgbm` plus one level feature for each key of LEVEL_KEYS,
     one model per seed, predictions averaged.
 
     The relative level of a train row is its TotalKg divided by the median TotalKg of its context (same sex,
     equipment and 10 kg bodyweight bin). For a row and a key, `<key>_level` is the mean relative level of the
-    train rows sharing its key, and `<key>_count` their number. On the training rows they are computed
-    out-of-fold, exact duplicates kept together, so that no row sees its own total.
+    train rows sharing its key. On the training rows it is computed out-of-fold, exact duplicates kept together,
+    so that no row sees its own total.
 
     The categories are those of the training rows. Each model stops early on a random 10 % of the training rows.
     `params` overrides LightGBM parameters of PARAMS.
@@ -44,10 +40,10 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         level = y / X.context_key.map(y.groupby(X.context_key).median())
 
         for key in LEVEL_KEYS:
-            mean, count = np.full(len(X), np.nan), np.zeros(len(X))
+            mean = np.full(len(X), np.nan)
             for tr, va in GroupKFold(5, shuffle=True, random_state=1).split(F, y, X.duplicate_group):
-                mean[va], count[va] = map_key_stats(X[key].iloc[va], key_stats(X[key].iloc[tr], level.iloc[tr]))
-            F[f"{key}_level"], F[f"{key}_count"] = mean, count
+                mean[va] = X[key].iloc[va].map(key_stats(X[key].iloc[tr], level.iloc[tr])).to_numpy()
+            F[f"{key}_level"] = mean
         self.stats_ = {key: key_stats(X[key], level) for key in LEVEL_KEYS}
         self.dtypes_ = F.dtypes.to_dict()
 
@@ -62,7 +58,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         F = X.drop(columns=KEY_COLS)
         for key, stats in self.stats_.items():
-            F[f"{key}_level"], F[f"{key}_count"] = map_key_stats(X[key], stats)
+            F[f"{key}_level"] = X[key].map(stats).to_numpy()
         F = F.astype(self.dtypes_)
         return np.mean([model.predict(F) for model in self.models_], axis=0)
 
