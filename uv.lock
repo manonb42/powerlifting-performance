@@ -1811,6 +1811,7 @@ name = "powerlifting-performance"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "catboost" },
     { name = "lightgbm" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1821,13 +1822,13 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "catboost" },
     { name = "jupyter" },
     { name = "optuna" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "catboost", specifier = ">=1.2.10" },
     { name = "lightgbm", specifier = ">=4.7.0" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "numpy", specifier = ">=2.5.3" },
@@ -1838,7 +1839,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "catboost", specifier = ">=1.2.10" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "optuna", specifier = ">=5.0.0" },
 ]

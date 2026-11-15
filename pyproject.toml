@@ -5,6 +5,7 @@ description = "Machine learning challenge: predicting powerlifting performance"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "catboost>=1.2.10",
     "lightgbm>=4.7.0",
     "matplotlib>=3.11.2",
     "numpy>=2.5.3",
@@ -19,7 +20,6 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "catboost>=1.2.10",
     "jupyter>=1.1.1",
     "optuna>=5.0.0",
 ]
