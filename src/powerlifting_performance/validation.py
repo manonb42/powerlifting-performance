@@ -12,13 +12,12 @@ def duplicate_groups(train: pd.DataFrame) -> pd.Series:
     so they must stay in the same fold.
     """
     features = [c for c in train.columns if c not in [ID, TARGET]]
-    return train.groupby(features).ngroup()
+    return train.groupby(features, dropna=False).ngroup()
 
 
-def cross_validate(model, X: pd.DataFrame, y: pd.Series, groups: pd.Series,
-                   n_splits: int = 5, random_state: int = 0) -> pd.DataFrame:
-    """RMSE and MAE (in kg) on each fold of a GroupKFold."""
-    cv = GroupKFold(n_splits, shuffle=True, random_state=random_state)
+def cross_validate(model, X: pd.DataFrame, y: pd.Series, groups: pd.Series, random_state: int = 0) -> pd.DataFrame:
+    """RMSE and MAE (in kg) on each fold of a 5-fold GroupKFold."""
+    cv = GroupKFold(5, shuffle=True, random_state=random_state)
     scores = sk_cross_validate(
         model, X, y, groups=groups, cv=cv,
         scoring={"RMSE": "neg_root_mean_squared_error", "MAE": "neg_mean_absolute_error"},

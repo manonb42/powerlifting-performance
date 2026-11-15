@@ -1,5 +1,7 @@
 # Powerlifting Performance
 
+Predict the total (`TotalKg`) lifted by a powerlifter at a meet, from the OpenPowerlifting-derived data in `data/`.
+The metric is RMSE.
 
 ## Requirements
 
@@ -28,8 +30,24 @@ uv sync
 
 ## Usage
 
-Train the model, print the cross-validation scores and write a submission to `submissions/`:
+Cross-validate the model (LightGBM with level features), fit it on the whole train set and write a submission to
+`submissions/submission_lightgbm.csv`:
 
 ```bash
 uv run python -m powerlifting_performance.train
 ```
+
+For the test rows identical to train rows on every column, the submission blends the prediction with the totals of
+these train rows. The cross-validation score does not include this blend.
+
+## Code
+
+All the code is in `src/powerlifting_performance/`.
+
+| File | Role |
+|---|---|
+| `features.py` | Features: raw columns, derived features, level keys |
+| `model.py` | The model, `LevelLightGBM`, and `blend_with_twins` |
+| `train.py` | Command line: cross-validation, fit, submission |
+| `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
+| `config.py`, `data.py` | Paths, column names, reading the data and writing a submission |
