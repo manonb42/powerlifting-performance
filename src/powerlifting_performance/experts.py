@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
+from catboost import CatBoostRegressor
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.model_selection import train_test_split
 
 from powerlifting_performance.config import CAT_COLS
-from powerlifting_performance.model import KEY_COLS, LevelLightGBM
+from powerlifting_performance.model import KEY_COLS, LevelLightGBM, fit_level_features, level_features
 
 TREE_CAT_COLS = [c for c in CAT_COLS if c != "WeightClassKg"]
 RARE = "Rare"
@@ -58,3 +60,25 @@ class GradientBoostingExpert(RegressorMixin, BaseEstimator):
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         return self.model_.predict(self.features(X))
+
+
+class CatBoostExpert(RegressorMixin, BaseEstimator):
+    """CatBoost on the raw and derived columns, plus the level features of LevelLightGBM if `level`. It stops early on a
+    random 10 % of the training rows."""
+
+    def __init__(self, level: bool = True):
+        self.level = level
+
+    def features(self, X: pd.DataFrame, columns: dict[str, np.ndarray]) -> pd.DataFrame:
+        return X.drop(columns=KEY_COLS).astype({c: object for c in TREE_CAT_COLS}).assign(**columns)
+
+    def fit(self, X: pd.DataFrame, y: pd.Series):
+        columns, self.stats_ = fit_level_features(X, y) if self.level else ({}, {})
+        F_tr, F_es, y_tr, y_es = train_test_split(self.features(X, columns), y, test_size=0.1, random_state=0)
+        self.model_ = CatBoostRegressor(iterations=3000, learning_rate=0.08, depth=6, od_type="Iter", od_wait=100,
+                                        random_seed=0, verbose=0, cat_features=TREE_CAT_COLS)
+        self.model_.fit(F_tr, y_tr, eval_set=(F_es, y_es), use_best_model=True)
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        return self.model_.predict(self.features(X, level_features(X, self.stats_)))
