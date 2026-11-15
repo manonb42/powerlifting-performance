@@ -13,19 +13,32 @@ PARAMS = dict(learning_rate=0.03368215881790901, num_leaves=53, min_child_sample
               reg_lambda=0.029083257971357097, cat_smooth=24.981310172342987)
 
 
-def key_stats(keys: pd.Series, level: pd.Series) -> pd.Series:
-    """Mean relative level for each key value."""
-    return level.groupby(keys).mean()
+def fit_level_features(X: pd.DataFrame, y: pd.Series) -> tuple[dict[str, np.ndarray], dict[str, pd.Series]]:
+    """Level features of the training rows, computed out-of-fold, and the statistics to compute them for new rows.
+
+    The relative level of a train row is its TotalKg divided by the median TotalKg of its context (same sex,
+    equipment and 10 kg bodyweight bin). For a row and a key of LEVEL_KEYS, `<key>_level` is the mean relative level
+    of the train rows sharing its key. On the training rows it is computed out-of-fold, exact duplicates kept together,
+    so that no row sees its own total.
+    """
+    level = y / X.context_key.map(y.groupby(X.context_key).median())
+    columns = {}
+    for key in LEVEL_KEYS:
+        mean = np.full(len(X), np.nan)
+        for tr, va in GroupKFold(5, shuffle=True, random_state=1).split(X, y, X.duplicate_group):
+            mean[va] = X[key].iloc[va].map(level.iloc[tr].groupby(X[key].iloc[tr]).mean()).to_numpy()
+        columns[f"{key}_level"] = mean
+    return columns, {key: level.groupby(X[key]).mean() for key in LEVEL_KEYS}
+
+
+def level_features(X: pd.DataFrame, stats: dict[str, pd.Series]) -> dict[str, np.ndarray]:
+    """Level features of new rows, from the statistics of `fit_level_features`."""
+    return {f"{key}_level": X[key].map(means).to_numpy() for key, means in stats.items()}
 
 
 class LevelLightGBM(RegressorMixin, BaseEstimator):
-    """LightGBM on the features of `features.prepare_lightgbm` plus one level feature for each key of LEVEL_KEYS,
-    one model per seed, predictions averaged.
-
-    The relative level of a train row is its TotalKg divided by the median TotalKg of its context (same sex,
-    equipment and 10 kg bodyweight bin). For a row and a key, `<key>_level` is the mean relative level of the
-    train rows sharing its key. On the training rows it is computed out-of-fold, exact duplicates kept together,
-    so that no row sees its own total.
+    """LightGBM on the features of `features.prepare_lightgbm` plus the level features (`fit_level_features`), one model
+    per seed, predictions averaged.
 
     The categories are those of the training rows. Each model stops early on a random 10 % of the training rows.
     `params` overrides LightGBM parameters of PARAMS.
@@ -36,15 +49,8 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         self.params = params
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
-        F = X.drop(columns=KEY_COLS).astype({c: "category" for c in CAT_COLS if c != "WeightClassKg"})
-        level = y / X.context_key.map(y.groupby(X.context_key).median())
-
-        for key in LEVEL_KEYS:
-            mean = np.full(len(X), np.nan)
-            for tr, va in GroupKFold(5, shuffle=True, random_state=1).split(F, y, X.duplicate_group):
-                mean[va] = X[key].iloc[va].map(key_stats(X[key].iloc[tr], level.iloc[tr])).to_numpy()
-            F[f"{key}_level"] = mean
-        self.stats_ = {key: key_stats(X[key], level) for key in LEVEL_KEYS}
+        columns, self.stats_ = fit_level_features(X, y)
+        F = X.drop(columns=KEY_COLS).astype({c: "category" for c in CAT_COLS if c != "WeightClassKg"}).assign(**columns)
         self.dtypes_ = F.dtypes.to_dict()
 
         self.models_ = []
@@ -56,10 +62,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        F = X.drop(columns=KEY_COLS)
-        for key, stats in self.stats_.items():
-            F[f"{key}_level"] = X[key].map(stats).to_numpy()
-        F = F.astype(self.dtypes_)
+        F = X.drop(columns=KEY_COLS).assign(**level_features(X, self.stats_)).astype(self.dtypes_)
         return np.mean([model.predict(F) for model in self.models_], axis=0)
 
 
