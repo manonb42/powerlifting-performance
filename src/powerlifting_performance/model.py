@@ -8,8 +8,9 @@ from powerlifting_performance.config import CAT_COLS, ID, TARGET
 
 LEVEL_KEYS = ["meet_key", "profile_key"]
 KEY_COLS = LEVEL_KEYS + ["context_key", "duplicate_group"]
-PARAMS = dict(learning_rate=0.03, num_leaves=63, min_child_samples=40, cat_smooth=10.0, subsample=0.8, subsample_freq=1,
-              colsample_bytree=0.7)
+PARAMS = dict(learning_rate=0.03368215881790901, num_leaves=53, min_child_samples=50,
+              subsample=0.9518264600084477, subsample_freq=1, colsample_bytree=0.4501644935675392,
+              reg_lambda=0.029083257971357097, cat_smooth=24.981310172342987)
 
 
 def key_stats(keys: pd.Series, level: pd.Series) -> pd.DataFrame:
@@ -34,7 +35,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     `params` overrides LightGBM parameters of PARAMS.
     """
 
-    def __init__(self, seeds: tuple[int, ...] = (0, 1, 2, 3, 4), params: dict | None = None):
+    def __init__(self, seeds: tuple[int, ...] = tuple(range(10)), params: dict | None = None):
         self.seeds = seeds
         self.params = params
 
