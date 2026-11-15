@@ -8,7 +8,7 @@ from powerlifting_performance.config import CAT_COLS, ID, TARGET
 
 LEVEL_KEYS = ["meet_key", "profile_key"]
 KEY_COLS = LEVEL_KEYS + ["context_key", "duplicate_group"]
-PARAMS = dict(learning_rate=0.03368215881790901, num_leaves=53, min_child_samples=50,
+PARAMS = dict(learning_rate=0.01, num_leaves=53, min_child_samples=50,
               subsample=0.9518264600084477, subsample_freq=1, colsample_bytree=0.4501644935675392,
               reg_lambda=0.029083257971357097, cat_smooth=24.981310172342987)
 
@@ -40,7 +40,8 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
     """LightGBM on the features of `features.prepare_lightgbm` plus the level features (`fit_level_features`), one model
     per seed, predictions averaged.
 
-    The categories are those of the training rows. Each model stops early on a random 10 % of the training rows.
+    The categories are those of the training rows. Each model first stops early on a random 10 % of the training
+    rows, which gives its number of trees; it is then refitted on all the training rows with 10 % more trees.
     `params` overrides LightGBM parameters of PARAMS.
     """
 
@@ -53,12 +54,15 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         F = X.drop(columns=KEY_COLS).astype({c: "category" for c in CAT_COLS if c != "WeightClassKg"}).assign(**columns)
         self.dtypes_ = F.dtypes.to_dict()
 
+        params = {**PARAMS, **(self.params or {})}
         self.models_ = []
         for seed in self.seeds:
             F_tr, F_es, y_tr, y_es = train_test_split(F, y, test_size=0.1, random_state=seed)
-            model = lgb.LGBMRegressor(n_estimators=10000, verbose=-1, random_state=seed, **{**PARAMS, **(self.params or {})})
+            model = lgb.LGBMRegressor(n_estimators=100000, verbose=-1, random_state=seed, **params)
             model.fit(F_tr, y_tr, eval_X=F_es, eval_y=y_es, callbacks=[lgb.early_stopping(200, verbose=False)])
-            self.models_.append(model)
+            n_trees = int(1.1 * model.best_iteration_)
+            model = lgb.LGBMRegressor(n_estimators=n_trees, verbose=-1, random_state=seed, **params)
+            self.models_.append(model.fit(F, y))
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
