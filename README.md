@@ -30,15 +30,17 @@ uv sync
 
 ## Usage
 
-Cross-validate the model (LightGBM with level features), fit it on the whole train set and write a submission to
-`submissions/submission_lightgbm.csv`:
+One command trains the final model and writes the submission to hand in, `submissions/submission_ensemble.csv`:
 
 ```bash
 uv run python -m powerlifting_performance.train
 ```
 
-For the test rows identical to train rows on every column, the submission blends the prediction with the totals of
-these train rows. The cross-validation score does not include this blend.
+The final model is a stacking of six experts: each is cross-validated on the same folds, and a linear regression with
+positive weights combines their out-of-fold predictions. The command prints the RMSE of each expert (the first one is
+the main LightGBM alone), the cross-validated RMSE of the stacking and its weights. For the test rows identical to a
+train row on every column, the submission is blended with the totals of these train rows; the cross-validation scores
+do not include this blend. It takes about three hours.
 
 ## Code
 
@@ -47,7 +49,8 @@ All the code is in `src/powerlifting_performance/`.
 | File | Role |
 |---|---|
 | `features.py` | Features: raw columns, derived features, level keys |
-| `model.py` | The model, `LevelLightGBM`, and `blend_with_twins` |
-| `train.py` | Command line: cross-validation, fit, submission |
+| `model.py` | The main model, `LevelLightGBM` (parameters in `PARAMS`), the level features, and `blend_with_twins` |
+| `experts.py` | The other experts of the stacking: LightGBM on another target, scikit-learn gradient boosting, CatBoost |
+| `train.py` | Command line: experts, stacking, submission |
 | `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
 | `config.py`, `data.py` | Paths, column names, reading the data and writing a submission |
