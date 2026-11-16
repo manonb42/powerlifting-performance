@@ -35,6 +35,12 @@ class TargetLightGBM(RegressorMixin, BaseEstimator):
         return prediction * self.reference(X) if self.target == "relative" else np.exp(prediction)
 
 
+def frequent_categories(values: pd.Series) -> list:
+    """The 250 most frequent values with at least 20 rows."""
+    counts = values.value_counts()
+    return list(counts[counts >= 20].index[:250])
+
+
 class GradientBoostingExpert(RegressorMixin, BaseEstimator):
     """scikit-learn gradient boosting on the raw and derived columns. It accepts at most 255 categories per column: each
     keeps its 250 most frequent categories with at least 20 training rows, the others are grouped in RARE."""
@@ -46,10 +52,7 @@ class GradientBoostingExpert(RegressorMixin, BaseEstimator):
         return F
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
-        self.categories_ = {}
-        for col in TREE_CAT_COLS:
-            counts = X[col].value_counts()
-            self.categories_[col] = list(counts[counts >= 20].index[:250])
+        self.categories_ = {col: frequent_categories(X[col]) for col in TREE_CAT_COLS}
         self.model_ = HistGradientBoostingRegressor(
             categorical_features="from_dtype", learning_rate=0.05, max_iter=2000, max_leaf_nodes=63,
             min_samples_leaf=40, early_stopping=True, validation_fraction=0.1, n_iter_no_change=50, random_state=0,
@@ -69,7 +72,7 @@ class CatBoostExpert(RegressorMixin, BaseEstimator):
         self.level = level
 
     def features(self, X: pd.DataFrame, columns: dict[str, np.ndarray]) -> pd.DataFrame:
-        return X.drop(columns=KEY_COLS).astype({c: object for c in TREE_CAT_COLS}).assign(**columns)
+        return X.drop(columns=KEY_COLS).astype(dict.fromkeys(TREE_CAT_COLS, object)).assign(**columns)
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
         columns, self.stats_ = fit_level_features(X, y) if self.level else ({}, {})
