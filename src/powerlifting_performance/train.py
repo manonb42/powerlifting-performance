@@ -1,15 +1,16 @@
 import time
 
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import GroupKFold, cross_val_predict
 
-from powerlifting_performance.config import ID
+from powerlifting_performance.config import FEATURES, ID, TARGET
 from powerlifting_performance.data import load_data, save_submission
 from powerlifting_performance.experts import CatBoostExpert, GradientBoostingExpert, TargetLightGBM
 from powerlifting_performance.features import prepare_features
-from powerlifting_performance.model import LevelLightGBM, blend_with_twins
+from powerlifting_performance.model import LevelLightGBM
 from powerlifting_performance.validation import cross_validate
 
 EXPERTS = {
@@ -20,6 +21,20 @@ EXPERTS = {
     "CatBoost": CatBoostExpert(level=False),
     "CatBoost niveau": CatBoostExpert(level=True),
 }
+
+
+def blend_with_twins(train: pd.DataFrame, test: pd.DataFrame, predictions: np.ndarray,
+                     weight: float = 0.8) -> np.ndarray:
+    """For the test rows identical to train rows on every feature (often the same performance entered in several
+    divisions), predict weight * mean total of these train rows + (1 - weight) * the model's prediction.
+
+    On the train rows with a twin, weight = 0.8 gives an RMSE of 36.5 kg, against 76.5 kg for the out-of-fold
+    predictions alone and 37.0 kg for the twin total alone.
+    This only helps when the test set was cut from the same data as train: new athletes have no twin.
+    """
+    twin_totals = train.groupby(FEATURES, as_index=False)[TARGET].mean()
+    twin_total = test[FEATURES].merge(twin_totals, on=FEATURES, how="left")[TARGET].to_numpy()
+    return np.where(np.isnan(twin_total), predictions, weight * twin_total + (1 - weight) * predictions)
 
 
 def main():

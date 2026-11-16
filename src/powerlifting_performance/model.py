@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import GroupKFold, train_test_split
 
-from powerlifting_performance.config import FEATURES, KEY_COLS, LEVEL_KEYS, TARGET, TREE_CAT_COLS
+from powerlifting_performance.config import KEY_COLS, LEVEL_KEYS, TREE_CAT_COLS
 
 PARAMS = dict(learning_rate=0.01, num_leaves=53, min_child_samples=50,
               subsample=0.9518264600084477, subsample_freq=1, colsample_bytree=0.4501644935675392,
@@ -67,16 +67,3 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
         F = X.drop(columns=KEY_COLS).assign(**level_features(X, self.stats_)).astype(self.dtypes_)
         return np.mean([model.predict(F) for model in self.models_], axis=0)
 
-
-def blend_with_twins(train: pd.DataFrame, test: pd.DataFrame, predictions: np.ndarray,
-                     weight: float = 0.8) -> np.ndarray:
-    """For the test rows identical to train rows on every feature (often the same performance entered in several
-    divisions), predict weight * mean total of these train rows + (1 - weight) * the model's prediction.
-
-    On the train rows with a twin, weight = 0.8 gives an RMSE of 36.5 kg, against 76.5 kg for the out-of-fold
-    predictions alone and 37.0 kg for the twin total alone.
-    This only helps when the test set was cut from the same data as train: new athletes have no twin.
-    """
-    twin_totals = train.groupby(FEATURES, as_index=False)[TARGET].mean()
-    twin_total = test[FEATURES].merge(twin_totals, on=FEATURES, how="left")[TARGET].to_numpy()
-    return np.where(np.isnan(twin_total), predictions, weight * twin_total + (1 - weight) * predictions)
