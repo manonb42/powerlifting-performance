@@ -23,9 +23,8 @@ def add_derived_features(X: pd.DataFrame) -> pd.DataFrame:
 def level_keys(df: pd.DataFrame) -> pd.DataFrame:
     """String keys grouping the rows for the level features: meet_key, profile_key and context_key."""
     df = df.assign(birth_year=(df.MeetYear - df.Age).round().astype(int), bodyweight_bin=df.BodyweightKg // 10)
-    join = lambda cols: df[cols].astype(str).agg("|".join, axis=1)
-    return pd.DataFrame({"meet_key": join(MEET_KEY), "profile_key": join(PROFILE_KEY),
-                         "context_key": join(CONTEXT_KEY)})
+    keys = {"meet_key": MEET_KEY, "profile_key": PROFILE_KEY, "context_key": CONTEXT_KEY}
+    return pd.DataFrame({name: df[cols].astype(str).agg("|".join, axis=1) for name, cols in keys.items()})
 
 
 def duplicate_groups(df: pd.DataFrame) -> pd.Series:
