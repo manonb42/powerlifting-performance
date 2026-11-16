@@ -1,6 +1,6 @@
 import pandas as pd
 
-from powerlifting_performance.config import CAT_COLS, CONTEXT_KEY, MEET_KEY, NUM_COLS, PROFILE_KEY, TARGET
+from powerlifting_performance.config import CONTEXT_KEY, FEATURES, MEET_KEY, PROFILE_KEY, TARGET
 from powerlifting_performance.validation import duplicate_groups
 
 
@@ -32,6 +32,6 @@ def level_keys(df: pd.DataFrame) -> pd.DataFrame:
 
 def prepare_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     """Return X_train, y_train (in kg) and X_test for LightGBM: raw columns, derived features, then the keys."""
-    build = lambda df: (add_derived_features(df[NUM_COLS + CAT_COLS], df).join(level_keys(df))
+    build = lambda df: (add_derived_features(df[FEATURES], df).join(level_keys(df))
                         .assign(duplicate_group=duplicate_groups(df)))
     return build(train), train[TARGET], build(test)

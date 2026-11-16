@@ -5,10 +5,9 @@ from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 
-from powerlifting_performance.config import CAT_COLS
-from powerlifting_performance.model import KEY_COLS, LevelLightGBM, fit_level_features, level_features
+from powerlifting_performance.config import KEY_COLS, TREE_CAT_COLS
+from powerlifting_performance.model import LevelLightGBM, fit_level_features, level_features
 
-TREE_CAT_COLS = [c for c in CAT_COLS if c != "WeightClassKg"]
 RARE = "Rare"
 
 

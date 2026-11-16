@@ -4,10 +4,8 @@ import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import GroupKFold, train_test_split
 
-from powerlifting_performance.config import CAT_COLS, ID, TARGET
+from powerlifting_performance.config import FEATURES, KEY_COLS, LEVEL_KEYS, TARGET, TREE_CAT_COLS
 
-LEVEL_KEYS = ["meet_key", "profile_key"]
-KEY_COLS = LEVEL_KEYS + ["context_key", "duplicate_group"]
 PARAMS = dict(learning_rate=0.01, num_leaves=53, min_child_samples=50,
               subsample=0.9518264600084477, subsample_freq=1, colsample_bytree=0.4501644935675392,
               reg_lambda=0.029083257971357097, cat_smooth=24.981310172342987)
@@ -51,7 +49,7 @@ class LevelLightGBM(RegressorMixin, BaseEstimator):
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
         columns, self.stats_ = fit_level_features(X, y)
-        F = X.drop(columns=KEY_COLS).astype({c: "category" for c in CAT_COLS if c != "WeightClassKg"}).assign(**columns)
+        F = X.drop(columns=KEY_COLS).astype(dict.fromkeys(TREE_CAT_COLS, "category")).assign(**columns)
         self.dtypes_ = F.dtypes.to_dict()
 
         params = {**PARAMS, **(self.params or {})}
@@ -78,7 +76,6 @@ def blend_with_twins(train: pd.DataFrame, test: pd.DataFrame, predictions: np.nd
     weight = 0.8 was the best on train rows with a twin (RMSE 37 kg, against 66 kg for the model alone).
     This only helps when the test set was cut from the same data as train: new athletes have no twin.
     """
-    features = [c for c in train.columns if c not in [ID, TARGET]]
-    twin_total = test[features].merge(train.groupby(features, as_index=False)[TARGET].mean(),
-                                      on=features, how="left")[TARGET].to_numpy()
+    twin_totals = train.groupby(FEATURES, as_index=False)[TARGET].mean()
+    twin_total = test[FEATURES].merge(twin_totals, on=FEATURES, how="left")[TARGET].to_numpy()
     return np.where(np.isnan(twin_total), predictions, weight * twin_total + (1 - weight) * predictions)

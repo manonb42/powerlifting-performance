@@ -53,4 +53,4 @@ All the code is in `src/powerlifting_performance/`.
 | `experts.py` | The other experts of the stacking: LightGBM on another target, scikit-learn gradient boosting, CatBoost |
 | `train.py` | Command line: experts, stacking, submission |
 | `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
-| `config.py`, `data.py` | Paths, column names, reading the data and writing a submission |
+| `config.py`, `data.py` | Paths, column lists, reading the data and writing a submission |

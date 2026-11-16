@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import cross_validate as sk_cross_validate
 
-from powerlifting_performance.config import ID, TARGET
+from powerlifting_performance.config import FEATURES
 
 
 def duplicate_groups(train: pd.DataFrame) -> pd.Series:
@@ -11,8 +11,7 @@ def duplicate_groups(train: pd.DataFrame) -> pd.Series:
     Identical rows are mostly the same performance entered in several divisions,
     so they must stay in the same fold.
     """
-    features = [c for c in train.columns if c not in [ID, TARGET]]
-    return train.groupby(features, dropna=False).ngroup()
+    return train.groupby(FEATURES, dropna=False).ngroup()
 
 
 def cross_validate(model, X: pd.DataFrame, y: pd.Series, groups: pd.Series, random_state: int = 0) -> pd.DataFrame:
