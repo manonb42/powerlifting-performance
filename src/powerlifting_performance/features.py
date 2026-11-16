@@ -36,8 +36,9 @@ def duplicate_groups(df: pd.DataFrame) -> pd.Series:
     return df.groupby(FEATURES, dropna=False).ngroup()
 
 
-def prepare_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
-    """Return X_train, y_train (in kg) and X_test for LightGBM: raw columns, derived features, then the keys."""
-    build = lambda df: (add_derived_features(df[FEATURES]).join(level_keys(df))
-                        .assign(duplicate_group=duplicate_groups(df)))
+def prepare_features(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+    """Return X_train, y_train (in kg) and X_test: raw columns, derived features, then the keys."""
+    def build(df: pd.DataFrame) -> pd.DataFrame:
+        return add_derived_features(df[FEATURES]).join(level_keys(df)).assign(duplicate_group=duplicate_groups(df))
+
     return build(train), train[TARGET], build(test)

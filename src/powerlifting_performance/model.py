@@ -35,7 +35,7 @@ def level_features(X: pd.DataFrame, stats: dict[str, pd.Series]) -> dict[str, np
 
 
 class LevelLightGBM(RegressorMixin, BaseEstimator):
-    """LightGBM on the features of `features.prepare_lightgbm` plus the level features (`fit_level_features`), one model
+    """LightGBM on the features of `features.prepare_features` plus the level features (`fit_level_features`), one model
     per seed, predictions averaged.
 
     The categories are those of the training rows. Each model first stops early on a random 10 % of the training
