@@ -28,17 +28,29 @@ uv sync
 
 `uv sync` creates a `.venv` virtual environment and installs the exact dependency versions listed in `uv.lock`.
 
+The data is not in the repository. Before running the project, put the challenge's `train.csv` and `test.csv` in a
+`data/` folder at the root of the project, or point to the folder where they are by changing this line of
+`src/powerlifting_performance/config.py`:
+
+```python
+DATA_DIR = ROOT_DIR / "data"
+```
+
+For example `DATA_DIR = Path("/path/to/the/data")`.
+
 ## Usage
 
-Cross-validate the model (LightGBM with level features), fit it on the whole train set and write a submission to
-`submissions/submission_lightgbm.csv`:
+One command trains the final model and writes the submission to hand in, `submissions/submission_ensemble.csv`:
 
 ```bash
 uv run python -m powerlifting_performance.train
 ```
 
-For the test rows identical to train rows on every column, the submission blends the prediction with the totals of
-these train rows. The cross-validation score does not include this blend.
+The final model is a stacking of six experts: each is cross-validated on the same folds, and a linear regression with
+positive weights combines their out-of-fold predictions. The command prints the RMSE of each expert (the first one is
+the main LightGBM alone), the cross-validated RMSE of the stacking and its weights. For the test rows identical to a
+train row on every column, the submission is blended with the totals of these train rows; the cross-validation scores
+do not include this blend. It takes about three hours.
 
 ## Code
 
@@ -46,8 +58,8 @@ All the code is in `src/powerlifting_performance/`.
 
 | File | Role |
 |---|---|
-| `features.py` | Features: raw columns, derived features, level keys |
-| `model.py` | The model, `LevelLightGBM`, and `blend_with_twins` |
-| `train.py` | Command line: cross-validation, fit, submission |
-| `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
-| `config.py`, `data.py` | Paths, column names, reading the data and writing a submission |
+| `features.py` | Features: raw columns, derived features, level keys, groups of exact duplicates |
+| `models.py` | The experts of the stacking (main `LevelLightGBM` with its `PARAMS`, LightGBM on another target, gradient boosting, CatBoost) and their level features |
+| `train.py` | Command line: experts, stacking, blend with the exact duplicates from train, submission |
+| `validation.py` | Cross-validation on the groups of exact duplicates |
+| `config.py`, `data.py` | Paths, column lists, reading the data and writing a submission |
