@@ -8,9 +8,8 @@ from sklearn.model_selection import GroupKFold, cross_val_predict
 
 from powerlifting_performance.config import FEATURES, ID, TARGET
 from powerlifting_performance.data import load_data, save_submission
-from powerlifting_performance.experts import CatBoostExpert, GradientBoostingExpert, TargetLightGBM
 from powerlifting_performance.features import prepare_features
-from powerlifting_performance.model import LevelLightGBM
+from powerlifting_performance.models import CatBoostExpert, GradientBoostingExpert, LevelLightGBM, TargetLightGBM
 from powerlifting_performance.validation import cross_validate
 
 EXPERTS = {
