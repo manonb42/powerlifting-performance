@@ -28,6 +28,16 @@ uv sync
 
 `uv sync` creates a `.venv` virtual environment and installs the exact dependency versions listed in `uv.lock`.
 
+The data is not in the repository. Before running the project, put the challenge's `train.csv` and `test.csv` in a
+`data/` folder at the root of the project, or point to the folder where they are by changing this line of
+`src/powerlifting_performance/config.py`:
+
+```python
+DATA_DIR = ROOT_DIR / "data"
+```
+
+For example `DATA_DIR = Path("/path/to/the/data")`.
+
 ## Usage
 
 One command trains the final model and writes the submission to hand in, `submissions/submission_ensemble.csv`:
