@@ -6,3 +6,4 @@ __pycache__/
 submissions/
 data/sample_submission.csv
 data/openpowerlifting.csv
+catboost_info/
