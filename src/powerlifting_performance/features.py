@@ -1,10 +1,9 @@
 import pandas as pd
 
 from powerlifting_performance.config import CONTEXT_KEY, FEATURES, MEET_KEY, PROFILE_KEY, TARGET
-from powerlifting_performance.validation import duplicate_groups
 
 
-def add_derived_features(X: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
+def add_derived_features(X: pd.DataFrame) -> pd.DataFrame:
     """Hints of the athlete's level that the raw columns only hold implicitly.
 
     - age_half: age ending in .5, i.e. approximated from a birth year.
@@ -14,12 +13,11 @@ def add_derived_features(X: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
 
     is_international (Country != MeetCountry) was tried and dropped: no gain, the model already has both columns.
     """
-    X = X.drop(columns="WeightClassKg")
-    X["age_half"] = (df.Age % 1 == 0.5).astype(int)
-    X["class_limit"] = pd.to_numeric(df.WeightClassKg.str.rstrip("+"), errors="coerce")
-    X["is_plus_class"] = df.WeightClassKg.str.endswith("+").astype(int)
-    X["bw_ratio"] = df.BodyweightKg / X.class_limit
-    return X
+    class_limit = pd.to_numeric(X.WeightClassKg.str.rstrip("+"), errors="coerce")
+    return X.drop(columns="WeightClassKg").assign(
+        age_half=(X.Age % 1 == 0.5).astype(int), class_limit=class_limit,
+        is_plus_class=X.WeightClassKg.str.endswith("+").astype(int), bw_ratio=X.BodyweightKg / class_limit,
+    )
 
 
 def level_keys(df: pd.DataFrame) -> pd.DataFrame:
@@ -30,8 +28,17 @@ def level_keys(df: pd.DataFrame) -> pd.DataFrame:
                          "context_key": join(CONTEXT_KEY)})
 
 
+def duplicate_groups(df: pd.DataFrame) -> pd.Series:
+    """One group id per set of rows with identical features.
+
+    Identical rows are mostly the same performance entered in several divisions,
+    so they must stay in the same fold.
+    """
+    return df.groupby(FEATURES, dropna=False).ngroup()
+
+
 def prepare_lightgbm(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     """Return X_train, y_train (in kg) and X_test for LightGBM: raw columns, derived features, then the keys."""
-    build = lambda df: (add_derived_features(df[FEATURES], df).join(level_keys(df))
+    build = lambda df: (add_derived_features(df[FEATURES]).join(level_keys(df))
                         .assign(duplicate_group=duplicate_groups(df)))
     return build(train), train[TARGET], build(test)

@@ -2,17 +2,6 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import cross_validate as sk_cross_validate
 
-from powerlifting_performance.config import FEATURES
-
-
-def duplicate_groups(train: pd.DataFrame) -> pd.Series:
-    """One group id per set of rows with identical features.
-
-    Identical rows are mostly the same performance entered in several divisions,
-    so they must stay in the same fold.
-    """
-    return train.groupby(FEATURES, dropna=False).ngroup()
-
 
 def cross_validate(model, X: pd.DataFrame, y: pd.Series, groups: pd.Series, random_state: int = 0) -> pd.DataFrame:
     """RMSE and MAE (in kg) on each fold of a 5-fold GroupKFold."""

@@ -48,9 +48,9 @@ All the code is in `src/powerlifting_performance/`.
 
 | File | Role |
 |---|---|
-| `features.py` | Features: raw columns, derived features, level keys |
+| `features.py` | Features: raw columns, derived features, level keys, groups of exact duplicates |
 | `model.py` | The main model, `LevelLightGBM` (parameters in `PARAMS`), the level features, and `blend_with_twins` |
 | `experts.py` | The other experts of the stacking: LightGBM on another target, scikit-learn gradient boosting, CatBoost |
 | `train.py` | Command line: experts, stacking, submission |
-| `validation.py` | Cross-validation that keeps exact duplicates in the same fold |
+| `validation.py` | Cross-validation on the groups of exact duplicates |
 | `config.py`, `data.py` | Paths, column lists, reading the data and writing a submission |
