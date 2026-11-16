@@ -5,16 +5,14 @@ import pandas as pd
 from powerlifting_performance.config import DATA_DIR, ID, SUBMISSIONS_DIR, TARGET
 
 
-def load_data(data_dir: Path = DATA_DIR) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Read the raw train and test sets."""
-    train = pd.read_csv(data_dir / "train.csv")
-    test = pd.read_csv(data_dir / "test.csv")
-    return train, test
+    return pd.read_csv(DATA_DIR / "train.csv"), pd.read_csv(DATA_DIR / "test.csv")
 
 
-def save_submission(ids: pd.Series, predictions, name: str, submissions_dir: Path = SUBMISSIONS_DIR) -> Path:
+def save_submission(ids: pd.Series, predictions, name: str) -> Path:
     """Write predictions in the sample_submission.csv format."""
-    submissions_dir.mkdir(exist_ok=True)
-    path = submissions_dir / f"submission_{name}.csv"
+    SUBMISSIONS_DIR.mkdir(exist_ok=True)
+    path = SUBMISSIONS_DIR / f"submission_{name}.csv"
     pd.DataFrame({ID: ids, TARGET: predictions}).to_csv(path, index=False)
     return path
