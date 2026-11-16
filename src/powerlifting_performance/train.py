@@ -2,6 +2,7 @@ import time
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import GroupKFold, cross_val_predict
 
 from powerlifting_performance.config import ID
@@ -31,7 +32,7 @@ def main():
         start = time.time()
         oof[name] = cross_val_predict(model, X, y, groups=X.duplicate_group, cv=cv)
         test_pred[name] = model.fit(X, y).predict(X_test)
-        rmse = np.sqrt(np.mean((oof[name] - y) ** 2))
+        rmse = root_mean_squared_error(y, oof[name])
         print(f"{name:24s} RMSE hors-fold {rmse:.2f} ({(time.time() - start) / 60:.0f} min)", flush=True)
 
     P, P_test = np.column_stack(list(oof.values())), np.column_stack(list(test_pred.values()))
