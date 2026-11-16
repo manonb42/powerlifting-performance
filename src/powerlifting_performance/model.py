@@ -73,7 +73,8 @@ def blend_with_twins(train: pd.DataFrame, test: pd.DataFrame, predictions: np.nd
     """For the test rows identical to train rows on every feature (often the same performance entered in several
     divisions), predict weight * mean total of these train rows + (1 - weight) * the model's prediction.
 
-    weight = 0.8 was the best on train rows with a twin (RMSE 37 kg, against 66 kg for the model alone).
+    On the train rows with a twin, weight = 0.8 gives an RMSE of 36.5 kg, against 76.5 kg for the out-of-fold
+    predictions alone and 37.0 kg for the twin total alone.
     This only helps when the test set was cut from the same data as train: new athletes have no twin.
     """
     twin_totals = train.groupby(FEATURES, as_index=False)[TARGET].mean()
